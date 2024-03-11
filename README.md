@@ -33,4 +33,5 @@ This Python script is designed to calibrate the SABR model to market data and ge
 - Verify that the output file paths are correctly specified to save the generated results.
 
 ## Data
-- Data is from Bloomberg 8 March 2024 12:05 CET. 
+- Data is from Bloomberg 8 March 2024 12:05 CET.
+- Currency: USD with IBOR rates and OIS discounting. 
