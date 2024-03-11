@@ -30,48 +30,41 @@ def SABR(alpha, beta, rho, nu, F, K, time, MKT): # all variables are scalars
     return round(VOL, 4), round(diff, 4)
 
 
-def SABR_vol_matrix(alpha, beta, rho, nu, F, K, time, MKT): # F, time and the parameters are vectors, K and MKT are matrices
+# Defining the function that creates our new output dataframe
 
-    print("SABR VOLATILITIES")
-    print('  ' , '\t' , 'strikes:') 
-    for i in range(num_strikes):
-        print(label_strikes[i] , '\t')
-
-    outvol_data = [['SABR VOLATILITIES']]
-    vol_diff_data = [['VOLATILITY DIFFERENCES']]
-    parameters_data = [['PARAMETERS']]
-    outvol_data[0].extend(['', 'strikes:'])
-    vol_diff_data[0].extend(['', 'strikes:'])
-    outvol_data.append(['', ''])
-    vol_diff_data.append(['', ''])
-
-    for j in range(len(strike_spreads)):
-        outvol_data[1].append(label_strikes[j])
-        vol_diff_data[1].append(label_strikes[j])
-
-    outvol_data[1].append('')
-    vol_diff_data[1].append('')
-
-    parameters_data.append(['tenor', 'expiry', 'alpha', 'beta', 'rho', 'nu'])
+def SABR_vol_matrix(alpha, beta, rho, nu, F, K, time, MKT):
+    outvol_data = [['SABR VOLATILITIES', 'strikes:'] + label_strikes]
+    vol_diff_data = [['VOLATILITY DIFFERENCES', 'strikes:'] + label_strikes]
 
     for i in range(len(F)):
-        smile_data = [[label_ten[i], label_exp[i]]]
+        smile_data = [label_ten[i], label_exp[i]] + [None] * (len(label_strikes) - 1)  # Initialize a row with None values
+        smile_diff = [label_ten[i], label_exp[i]] + [None] * (len(label_strikes) - 1)  # Initialize a row for volatility differences
         for j in range(len(K[i])):
             vol, diff = SABR(alpha[i], beta[i], rho[i], nu[i], F[i], K[i][j], time[i], MKT[i][j])
-            smile_data.append([vol])
-            vol_diff_data.append([diff])
-        outvol_data.extend(smile_data)
-        outvol_data.append(['', ''])
+            if j + 2 < len(smile_data):  # Check if the index is within the range of smile_data
+                smile_data[j + 2] = vol  # Set the SABR volatility value at the appropriate index
+                smile_diff[j + 2] = diff  # Set the volatility difference value at the appropriate index
+            else:
+                break  # Break the loop if the index is out of range
+        outvol_data.append(smile_data)
+        vol_diff_data.append(smile_diff)
+
+    parameters_data = [['PARAMETERS']]
+    parameters_data.append(['tenor', 'expiry', 'alpha', 'beta', 'rho', 'nu'])
+    for i in range(len(F)):
         parameters_data.append([label_ten[i], label_exp[i], alpha[i], beta[i], rho[i], nu[i]])
 
     outvol_df = pd.DataFrame(outvol_data)
     vol_diff_df = pd.DataFrame(vol_diff_data)
     parameters_df = pd.DataFrame(parameters_data)
 
-    with pd.ExcelWriter('output.xlsx') as writer:
+    with pd.ExcelWriter("C:\\Users\\juliu\\OneDrive\\Skrivebord\\sabr script\\output.xlsx") as writer:
         outvol_df.to_excel(writer, sheet_name='outvol', index=False, header=False)
         vol_diff_df.to_excel(writer, sheet_name='vol_diff', index=False, header=False)
         parameters_df.to_excel(writer, sheet_name='parameters', index=False, header=False)
+
+    return outvol_df, vol_diff_df, parameters_df
+    
 
 
 def shift(F, K):
@@ -119,23 +112,20 @@ def calibration(starting_par, F, K, time, MKT):
         rho[i] = res.x[2]
         nu[i] = res.x[3]
 
-
-################################################################################################################################################
-
 ######## inputs and outputs #########################################
 
 try:
-    market_data = pd.read_excel('Market_data.xlsx', sheet_name='Swaptions data')  # load market data
+    market_data = pd.read_excel("C:\\Users\\juliu\\OneDrive\\Skrivebord\\sabr script\\data.xlsx", sheet_name='Swaptions data')  # load market data
 except FileNotFoundError:
     print("File 'Market_data.xlsx' not found. Please check the file path.")
     # Handle the error or exit the program gracefully
 
 ######## set swaptions characteristics ###############################
      
-strike_spreads = market_data.iloc[1, 3:].astype(int).tolist()
+strike_spreads = market_data.iloc[0, 3:].tolist()
 num_strikes = len(strike_spreads)
 
-expiries = market_data.iloc[2:, 1].tolist()
+expiries = market_data.iloc[2:, 1].tolist() 
 
 tenors = market_data.iloc[2:, 0].tolist()
 
@@ -154,7 +144,7 @@ beta = len(F) * [starting_guess[1]]
 rho = len(F) * [starting_guess[2]]
 nu = len(F) * [starting_guess[3]]
 
-######## set labels ###################################################
+######## set labels ######## 
 
 def get_label_exp(expiry):
     exp_dates = []
@@ -186,10 +176,20 @@ def get_label_ten(tenor):
 
 label_exp = get_label_exp(expiries)
 label_ten = get_label_ten(tenors)
-label_strikes = ['ATM' if spread == 0 else str(spread) for spread in strike_spreads]
+# Extracting unique strikes from the market data
+# Define the basis point spreads
+basis_point_spreads = [-150, -100, -50, -25, 0, 25, 50, 100, 150]
 
-######## Call the functions #################################
+# Define the ATM strike
+atm_strike = 'ATM'
+
+# Combine the ATM strike and basis point spreads
+label_strikes = [atm_strike] + [str(spread) for spread in basis_point_spreads]
+
+
+######## Call the functions #########
 
 calibration(starting_guess, F, K, expiries, MKT)
 
 SABR_vol_matrix(alpha, beta, rho, nu, F, K, expiries, MKT)
+
