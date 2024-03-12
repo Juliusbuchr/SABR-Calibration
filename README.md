@@ -1,6 +1,6 @@
-# SABR Calibration and Volatility Generation
+# SABR Calibration
 
-This Python script is designed to calibrate the SABR model to market data and generate SABR implied volatilities for interest rate swaptions. The script takes market data from an Excel file, calibrates the SABR model parameters, and outputs the calibrated parameters, SABR volatilities, and differences between market volatilities and model-generated volatilities.
+This Python script is designed to calibrate the SABR model to market data and fit SABR implied volatilities for interest rate swaptions. The script takes market data from an Excel file, calibrates the SABR model parameters, and outputs the calibrated parameters, SABR volatilities, and differences between market volatilities and model-ijmplied volatilities.
 
 ## Prerequisites
 - Required Python packages: `pandas`, `numpy`, `scipy`
