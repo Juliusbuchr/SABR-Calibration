@@ -17,7 +17,7 @@ This Python script is designed to calibrate the SABR model to market data and fi
 4. **Run the Script**: Execute the script, and it will calibrate the SABR model parameters and generate the required outputs.
 
 ## File Descriptions
-- **`data.xlsx`**: Input Excel file containing market data.
+- **`swapsdata.xlsx`**: Input Excel file containing market data.
 - **`output.xlsx`**: Output Excel file containing the following sheets:
   - `outvol`: SABR volatilities.
   - `vol_diff`: Differences between market volatilities and model-generated volatilities.
