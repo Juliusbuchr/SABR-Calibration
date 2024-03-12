@@ -29,7 +29,6 @@ def SABR(alpha, beta, rho, nu, F, K, time, MKT): # all variables are scalars
 
     return round(VOL, 4), round(diff, 4)
 
-
 # Defining the function that creates our new output dataframe
 
 def SABR_vol_matrix(alpha, beta, rho, nu, F, K, time, MKT):
@@ -63,8 +62,9 @@ def SABR_vol_matrix(alpha, beta, rho, nu, F, K, time, MKT):
         vol_diff_df.to_excel(writer, sheet_name='vol_diff', index=False, header=False)
         parameters_df.to_excel(writer, sheet_name='parameters', index=False, header=False)
 
+    print("Data Successfully Calculated! Output in directory!")
+
     return outvol_df, vol_diff_df, parameters_df
-    
 
 
 def shift(F, K):
@@ -111,11 +111,13 @@ def calibration(starting_par, F, K, time, MKT):
         beta[i] = res.x[1]
         rho[i] = res.x[2]
         nu[i] = res.x[3]
+    
+    print("Calibration Done!")
 
 ######## inputs and outputs #########################################
 
 try:
-    market_data = pd.read_excel("C:\\Users\\juliu\\OneDrive\\Skrivebord\\sabr script\\data.xlsx", sheet_name='Swaptions data')  # load market data
+    market_data = pd.read_excel("C:\\Users\\juliu\\OneDrive\\Skrivebord\\sabr script\\swapsdata.xlsx", sheet_name='Swaptions data')  # load market data
 except FileNotFoundError:
     print("File 'Market_data.xlsx' not found. Please check the file path.")
     # Handle the error or exit the program gracefully
@@ -123,6 +125,7 @@ except FileNotFoundError:
 ######## set swaptions characteristics ###############################
      
 strike_spreads = market_data.iloc[0, 3:].tolist()
+
 num_strikes = len(strike_spreads)
 
 expiries = market_data.iloc[2:, 1].tolist() 
@@ -134,7 +137,7 @@ F = market_data.iloc[2:, 2].tolist()
 K = np.zeros((len(F), num_strikes))
 for i in range(len(F)):
     for j in range(num_strikes):
-        K[i][j] = F[i] + 0.0001 * (strike_spreads[j])  
+        K[i][j] = F[i] + (strike_spreads[j])/10000
 
 MKT = market_data.iloc[2:, 3:].values
 
@@ -176,9 +179,11 @@ def get_label_ten(tenor):
 
 label_exp = get_label_exp(expiries)
 label_ten = get_label_ten(tenors)
+
+
 # Extracting unique strikes from the market data
 # Define the basis point spreads
-basis_point_spreads = [-150, -100, -50, -25, 0, 25, 50, 100, 150]
+basis_point_spreads = [-200, -100, -75, -50, -25, 0, 25, 50, 75, 100, 200, 400] 
 
 # Define the ATM strike
 atm_strike = 'ATM'
@@ -192,4 +197,6 @@ label_strikes = [atm_strike] + [str(spread) for spread in basis_point_spreads]
 calibration(starting_guess, F, K, expiries, MKT)
 
 SABR_vol_matrix(alpha, beta, rho, nu, F, K, expiries, MKT)
+
+
 
