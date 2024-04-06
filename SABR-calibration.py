@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import math
@@ -6,28 +5,24 @@ from scipy.optimize import minimize
 
 ######## functions definitions ###############################################
 
-def SABR(alpha, beta, rho, nu, F, K, time, MKT): # all variables are scalars
-    if K <= 0:   # negative rates' problem, need to shift the smile
+def SABR(alpha, beta, rho, nu, F, K, time, MKT):
+    if K <= 0:   # Negative rates' problem, need to shift the smile
         VOL = 0
         diff = 0
     elif F == K: # ATM formula
         V = (F*K)**((1-beta)/2.)
-        logFK = math.log(F/K)
-        A = 1 + ( ((1-beta)**2*alpha**2)/(24.*(V**2)) + (alpha*beta*nu*rho)/(4.*V) + ((nu**2)*(2-3*(rho**2))/24.) ) * time
-        B = 1 + (1/24.)*(((1-beta)*logFK)**2) + (1/1920.)*(((1-beta)*logFK)**4)
-        VOL = (alpha/V)*A
+        A = 1 + (((1-beta)**2*alpha**2)/(24.*(V**2)) + (alpha*beta*nu*rho)/(4.*V) + ((nu**2)*(2-3*(rho**2))/24.)) * time
+        VOL = (alpha/V) * A
         diff = VOL - MKT
-    elif F != K: # not-ATM formula
+    elif F != K: # Not-ATM formula
         V = (F*K)**((1-beta)/2.)
-        logFK = math.log(F/K)
-        z = (nu/alpha)*V*logFK
-        x = math.log( ( math.sqrt(1-2*rho*z+z**2) + z - rho ) / (1-rho) )
-        A = 1 + ( ((1-beta)**2*alpha**2)/(24.*(V**2)) + (alpha*beta*nu*rho)/(4.*V) + ((nu**2)*(2-3*(rho**2))/24.) ) * time
-        B = 1 + (1/24.)*(((1-beta)*logFK)**2) + (1/1920.)*(((1-beta)*logFK)**4)
-        VOL = (nu*logFK*A)/(x*B)
+        z = (nu/alpha)*V*math.log(F/K)
+        x = math.log((math.sqrt(1-2*rho*z+z**2) + z - rho) / (1-rho))
+        A = 1 + (((1-beta)**2*alpha**2)/(24.*(V**2)) + (alpha*beta*nu*rho)/(4.*V) + ((nu**2)*(2-3*(rho**2))/24.)) * time
+        VOL = (nu * math.log(F/K) * A) / x
         diff = VOL - MKT
 
-    return round(VOL, 4), round(diff, 4)
+    return VOL, diff
 
 # Defining the function that creates our new output dataframe
 
@@ -36,8 +31,8 @@ def SABR_vol_matrix(alpha, beta, rho, nu, F, K, time, MKT):
     vol_diff_data = [['VOLATILITY DIFFERENCES', 'strikes:'] + label_strikes]
 
     for i in range(len(F)):
-        smile_data = [label_ten[i], label_exp[i]] + [None] * (len(label_strikes) - 1)  # Initialize a row with None values
-        smile_diff = [label_ten[i], label_exp[i]] + [None] * (len(label_strikes) - 1)  # Initialize a row for volatility differences
+        smile_data = [label_ten[i], label_exp[i]] + [None] * (len(label_strikes))  # Initialize a row with None values
+        smile_diff = [label_ten[i], label_exp[i]] + [None] * (len(label_strikes))  # Initialize a row for volatility differences
         for j in range(len(K[i])):
             vol, diff = SABR(alpha[i], beta[i], rho[i], nu[i], F[i], K[i][j], time[i], MKT[i][j])
             if j + 2 < len(smile_data):  # Check if the index is within the range of smile_data
@@ -67,38 +62,16 @@ def SABR_vol_matrix(alpha, beta, rho, nu, F, K, time, MKT):
     return outvol_df, vol_diff_df, parameters_df
 
 
-def shift(F, K):
-    shift = 0.001 - K[0]
-    for j in range(len(K)):
-        K[j] = K[j] + shift
-        F = F + shift   
-
-
 def objfunc(par, F, K, time, MKT):
     sum_sq_diff = 0
-    if K[0] <= 0:
-        shift(F, K)
     for j in range(len(K)):
         if MKT[j] == 0:   
             diff = 0       
-        elif F == K[j]: 
-            V = (F*K[j])**((1-par[1])/2.)
-            logFK = math.log(F/K[j])
-            A = 1 + ( ((1-par[1])**2*par[0]**2)/(24.*(V**2)) + (par[0]*par[1]*par[3]*par[2])/(4.*V) + ((par[3]**2)*(2-3*(par[2]**2))/24.) ) * time
-            B = 1 + (1/24.)*(((1-par[1])*logFK)**2) + (1/1920.)*(((1-par[1])*logFK)**4)
-            VOL = (par[0]/V)*A
-            diff = VOL - MKT[j]
-        elif F != K[j]: 
-            V = (F*K[j])**((1-par[1])/2.)
-            logFK = math.log(F/K[j])
-            z = (par[3]/par[0])*V*logFK
-            x = math.log( ( math.sqrt(1-2*par[2]*z+z**2) + z - par[2] ) / (1-par[2]) )
-            A = 1 + ( ((1-par[1])**2*par[0]**2)/(24.*(V**2)) + (par[0]*par[1]*par[3]*par[2])/(4.*V) + ((par[3]**2)*(2-3*(par[2]**2))/24.) ) * time
-            B = 1 + (1/24.)*(((1-par[1])*logFK)**2) + (1/1920.)*(((1-par[1])*logFK)**4)
-            VOL = (par[3]*logFK*A)/(x*B)
-            diff = VOL - MKT[j]  
-        sum_sq_diff = sum_sq_diff + diff**2  
-        obj = math.sqrt(sum_sq_diff)
+        else:
+            vol, _ = SABR(par[0], par[1], par[2], par[3], F, K[j], time, MKT[j])
+            diff = vol - MKT[j]
+        sum_sq_diff += diff**2  
+    obj = math.sqrt(sum_sq_diff)
     return obj
 
 
@@ -124,22 +97,22 @@ except FileNotFoundError:
 
 ######## set swaptions characteristics ###############################
      
-strike_spreads = market_data.iloc[0, 3:].tolist()
+strike_spreads = [-100, -75, -50, -25, 0, 25, 50, 75, 100] 
 
 num_strikes = len(strike_spreads)
 
-expiries = market_data.iloc[2:, 1].tolist() 
+expiries = market_data["Expiry"]
 
-tenors = market_data.iloc[2:, 0].tolist()
+tenors = market_data["Tenor"]
 
-F = market_data.iloc[2:, 2].tolist()
+F = market_data["Fwd"]
 
 K = np.zeros((len(F), num_strikes))
 for i in range(len(F)):
     for j in range(num_strikes):
         K[i][j] = F[i] + (strike_spreads[j])/10000
 
-MKT = market_data.iloc[2:, 3:].values
+MKT = market_data.iloc[0:, 3:].values
 
 starting_guess = np.array([0.001, 0.5, 0, 0.001])
 alpha = len(F) * [starting_guess[0]]
@@ -183,13 +156,13 @@ label_ten = get_label_ten(tenors)
 
 # Extracting unique strikes from the market data
 # Define the basis point spreads
-basis_point_spreads = [-200, -100, -75, -50, -25, 0, 25, 50, 75, 100, 200, 400] 
+basis_point_spreads = [-100, -75, -50, -25, 0, 25, 50, 75, 100] 
 
 # Define the ATM strike
-atm_strike = 'ATM'
+# atm_strike = 'ATM'
 
 # Combine the ATM strike and basis point spreads
-label_strikes = [atm_strike] + [str(spread) for spread in basis_point_spreads]
+label_strikes = [str(spread) for spread in basis_point_spreads]
 
 
 ######## Call the functions #########
@@ -197,6 +170,5 @@ label_strikes = [atm_strike] + [str(spread) for spread in basis_point_spreads]
 calibration(starting_guess, F, K, expiries, MKT)
 
 SABR_vol_matrix(alpha, beta, rho, nu, F, K, expiries, MKT)
-
 
 
